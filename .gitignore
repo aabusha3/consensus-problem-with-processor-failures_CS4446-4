@@ -12,6 +12,7 @@
 
 # Package Files #
 *.jar
+!SimulatorV2.jar
 *.war
 *.nar
 *.ear
