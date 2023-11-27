@@ -28,7 +28,7 @@ public class FindFingerTable extends Algorithm {
 						localKeys.add(-searchKeys.elementAt(i));
 						searchKeys.remove(i);
 					}
-					else if (searchKeys.elementAt(i) > 1000) {
+					else if (searchKeys.elementAt(i) > 1000) {// These are processor id's to store in the finger table.
 						fingers.add(searchKeys.elementAt(i)-1000);
 						searchKeys.remove(i);
 					}

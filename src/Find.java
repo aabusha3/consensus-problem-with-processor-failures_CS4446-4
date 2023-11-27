@@ -1,8 +1,10 @@
-import java.util.Vector;            
+import java.util.Vector;
+import java.util.Arrays;
+import java.util.IntSummaryStatistics;
 public class Find extends Algorithm {
     private int m;                   	// Ring of identifiers has size 2^m
     private int SizeRing;              // SizeRing = 2^m
-
+	String result = ""; 						// Locations of searched-for keys will be stored here
     public Object run() {
         return find(getID());
     }
@@ -37,19 +39,94 @@ public class Find extends Algorithm {
 	      SizeRing = exp(2,m);
 
 		/* Your initialization code goes here */
-			
+		  Message mssg = null, message;
+		  String[] data;
+		  int keyValue;                   	// Key that is being searched
+		  boolean keyProcessed = false;
 	      if (searchKeys.size() > 0) { 		// If this condition is true, the processor has keys that need to be found
-	      
-			/* Your code to look for the keys locally and to create initial messages goes here */
-			
+			  // Get the next key to find and check if it is stored locally
+			  keyValue = searchKeys.elementAt(0);
+			  searchKeys.remove(0);           // Do not search for the same key twice
+			  if (localKeys.contains(keyValue)) {
+				  result = result + keyValue + ":" + id + " "; // Store location of key in the result
+				  keyProcessed = true;
+			  }
+			  else {// Key was not stored locally
+				  String keyNext = inSegment(hk(keyValue), hp(id), intFingerTable(fingerTable));
+				  if(keyNext.equals("null")){
+					  //mssg = makeMessage (id, pack("NOT_FOUND",keyValue));
+					  result = result + id + ":not found ";
+					  keyProcessed = true;
+				  }
+				  else mssg = makeMessage (keyNext, pack("LOOKUP",keyValue,id)); // ask closest finger
+			  }
 	      }
 
-			
-	      while (waitForNextRound()) { // Synchronous loop
-         		/* Your code goes here */
-         		
-	      }
-                
+		   while (waitForNextRound()) {
+			   if (mssg != null) {
+				   send(mssg);
+				   data = unpack(mssg.data());
+				   if (data[0].equals("END") && searchKeys.size() == 0) return result;
+			   }
+			   mssg = null;
+			   message = receive();
+			   while (message != null) {
+				   data = unpack(message.data());
+				   if (data[0].equals("LOOKUP")) {
+					   keyValue = stringToInteger(data[1]);
+
+					   if (localKeys.contains(keyValue)) {//search local
+						   mssg = makeMessage(data[2],pack("FOUND",data[1],id));
+					   }
+					   else {// Key was not in system
+						   if (data[2].equals(id)) {
+							   result = result + data[1] + ":not found ";
+							   keyProcessed = true;
+						   }
+						   else{//forward
+							   String keyNext = inSegment(hk(keyValue), hp(id), intFingerTable(fingerTable));
+							   if(keyNext.equals("null")) mssg = makeMessage (data[2], pack("NOT_FOUND",keyValue));
+							   else mssg = makeMessage (keyNext, pack("LOOKUP",keyValue,data[2])); // ask closest finger
+						   }
+					   }
+				   }
+				   else if (data[0].equals("FOUND")) {
+					   result = result + data[1] + ":" + data[2] + " ";
+					   keyProcessed = true;
+				   }
+				   else if (data[0].equals("NOT_FOUND")) {
+					   result = result + data[1] + ":not found ";
+					   keyProcessed = true;
+				   }
+				   else if (data[0].equals("END"))
+					   if (searchKeys.size() > 0) return result;
+					   else mssg = makeMessage(successor(),"END");
+				   message = receive();
+			   }
+
+			   if (keyProcessed) { // Search for the next key
+				   if (searchKeys.size() == 0)  // There are no more keys to find
+					   mssg = makeMessage(successor(),"END");
+				   else {
+					   keyValue = searchKeys.elementAt(0);
+					   searchKeys.remove(0);  // Do not search for same key twice
+					   if (localKeys.contains(keyValue)) {
+						   result = result + keyValue + ":" + id + " "; // Store location of key in the result
+						   keyProcessed = true;
+					   }
+					   else {// Key was not stored locally
+						   String keyNext = inSegment(hk(keyValue), hp(id), intFingerTable(fingerTable));
+						   if(keyNext.equals("null")){
+							   //mssg = makeMessage (id, pack("NOT_FOUND",keyValue));
+							   result = result + id + ":not found ";
+							   keyProcessed = true;
+						   }
+						   else mssg = makeMessage (keyNext, pack("LOOKUP",keyValue,id)); // ask closest finger
+					   }
+				   }
+				   if (mssg != null) keyProcessed = false;
+			   }
+		   }
  
         } catch(SimulatorException e){
             System.out.println("ERROR: " + e.toString());
@@ -59,6 +136,56 @@ public class Find extends Algorithm {
         return null;
     }
 
+
+	private int[] intFingerTable(String[] fingerTable) throws SimulatorException{
+		int [] intfingerTable = new int[fingerTable.length];
+		for (int i = 0; i<fingerTable.length; ++i){
+			intfingerTable[i] = stringToInteger(fingerTable[i]);
+		}
+		return intfingerTable;
+	}
+
+
+	/* Determine whether hk(value) is in (hp(ID),hp(succ)] */
+	/* ---------------------------------------------------------------- */
+	private String inSegment(int hashValue, int hashID, int[] fingerTable) throws SimulatorException{
+		/* ----------------------------------------------------------------- */
+		IntSummaryStatistics stat = Arrays.stream(fingerTable).summaryStatistics();
+		int max = stat.getMax();
+
+		if(hashValue < hashID){//the key is behind the node
+			if(hashValue < max){
+				System.out.println(hashID+":hashValue < hashID & max:null");
+				return "null";
+			}
+			else{
+				System.out.println(hashID+":hashValue < hashID:"+max);
+				return integerToString(max);
+			}
+		}
+
+		else if(hashValue > hashID){//the key is in front of the node
+			int distance = Integer.MAX_VALUE;
+			int id = -1;
+			for(int i = 0; i < fingerTable.length-1; i++){
+				int idistance = Math.abs(fingerTable[i] - hashValue);
+				if(idistance<distance && fingerTable[i]>hashValue){
+					id = i;
+					distance = idistance;
+				}
+			}
+			if(id<0){
+				System.out.println(hashID+":hashValue > hashID max:"+max);
+				return integerToString(max);
+			}
+			else{
+				System.out.println(hashID+":hashValue > hashID:"+fingerTable[id]);
+				return integerToString(fingerTable[id]);
+			}
+		}
+
+		else return "null";
+	}
 
 	/* Determine the keys that need to be stored locally and the keys that the processor needs to find.
 	   Negative keys returned by the simulator's method keysToFind() are to be stored locally in this 

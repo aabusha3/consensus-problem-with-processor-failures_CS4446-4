@@ -1,7 +1,7 @@
 import java.util.Vector;            
 public class FindSimpler extends Algorithm {
     private final int m = 6;                   	// Ring of identifiers has size 2^m
-    private int SizeRing = exp(2,m);
+    private final int SizeRing = exp(2,m);
 	String result = ""; 						// Locations of searched-for keys will be stored here 
 
     public Object run() {
@@ -39,8 +39,8 @@ public class FindSimpler extends Algorithm {
 			Vector<Integer> localKeys;   		// Keys stored in this processor			
 			localKeys = new Vector<Integer>();
 			searchKeys = new Vector<Integer>();
-			tmpKeys = keysToFind();             // Read from the configuration file the keys to store locally, the keys to 
-			                                    // find and and processors id's for the finger table
+			tmpKeys = keysToFind();             // Read from the configuration file the keys to store locally,
+			                                    // the keys to find and processors id's for the finger table
 			
 			getKeys(tmpKeys,searchKeys,localKeys);  // Identify the keys that must be stored locally and the keys that
 			                                        // the algorithm has to find 
@@ -120,7 +120,7 @@ public class FindSimpler extends Algorithm {
 					}
 					if (mssg != null) keyProcessed = false;
 				}
-	    }
+	    	}
                 
  
         } catch(SimulatorException e){
@@ -163,15 +163,12 @@ public class FindSimpler extends Algorithm {
     private boolean inSegment(int hashValue, int hashID, int hashSucc) {
     /* ----------------------------------------------------------------- */
 		if (hashID == hashSucc)
-			if (hashValue == hashID) return true;
-			else return false;
-        else if (hashID < hashSucc) 
-			if ((hashValue > hashID) && (hashValue <= hashSucc)) return true;
-			else return false;
-		else 
-			if (((hashValue > hashID) && (hashValue < SizeRing)) || 
-                ((0 <= hashValue) && (hashValue <= hashSucc)))  return true;
-			else return false;
+			return hashValue == hashID;
+        else if (hashID < hashSucc)
+			return (hashValue > hashID) && (hashValue <= hashSucc);
+		else
+			return ((hashValue > hashID) && (hashValue < SizeRing)) ||
+					((0 <= hashValue) && (hashValue <= hashSucc));
     }
 
     /* Hash function for processors. We use the simple mod function */
