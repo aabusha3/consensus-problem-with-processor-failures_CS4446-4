@@ -44,6 +44,8 @@ public class Find extends Algorithm {
 		  int keyValue;                   	// Key that is being searched
 		  boolean keyProcessed = false;
 	      if (searchKeys.size() > 0) { 		// If this condition is true, the processor has keys that need to be found
+			for(String e: fingerTable) System.out.println(e);
+			  System.out.println(fingerTable.length);
 			  // Get the next key to find and check if it is stored locally
 			  keyValue = searchKeys.elementAt(0);
 			  searchKeys.remove(0);           // Do not search for the same key twice
